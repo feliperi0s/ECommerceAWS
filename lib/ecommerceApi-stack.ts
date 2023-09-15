@@ -1,24 +1,25 @@
 import * as lambdaNodeJS from "aws-cdk-lib/aws-lambda-nodejs"
 import * as cdk from "aws-cdk-lib"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
-import * as cwlogs  from "aws-cdk-lib/aws-logs"
+import * as cwlogs from "aws-cdk-lib/aws-logs"
 
 import { Construct } from "constructs"
 
-interface ECommerceApiStackProps extends cdk.StackProps{
-    productsFetchHandler : lambdaNodeJS.NodejsFunction
+interface ECommerceApiStackProps extends cdk.StackProps {
+    productsFetchHandler: lambdaNodeJS.NodejsFunction
+    productsAdminHandler: lambdaNodeJS.NodejsFunction
 }
 
-export class EcommerceApiStack extends cdk.Stack{
+export class EcommerceApiStack extends cdk.Stack {
 
-    constructor(scope: Construct, id:string,props: ECommerceApiStackProps){
-        super(scope,id,props)
+    constructor(scope: Construct, id: string, props: ECommerceApiStackProps) {
+        super(scope, id, props)
 
         const logGroup = new cwlogs.LogGroup(this, "ECommerceApiLogs")
         const api = new apigateway.RestApi(this, "ECommerceApi", {
             cloudWatchRole: true,
             restApiName: "ECommerceApi",
-            deployOptions:{
+            deployOptions: {
                 accessLogDestination: new apigateway.LogGroupLogDestination(logGroup),
                 accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields({
                     httpMethod: true,
@@ -35,7 +36,23 @@ export class EcommerceApiStack extends cdk.Stack{
         })
 
         const productsFetchIntegration = new apigateway.LambdaIntegration(props.productsFetchHandler)
+        // "/products"
         const productsResource = api.root.addResource("products")
         productsResource.addMethod("GET", productsFetchIntegration)
+
+        // "/products/{id}"
+        const productsIdResource = productsResource.addResource("{id}")
+        productsIdResource.addMethod("GET", productsFetchIntegration)
+
+        const productsAdminIntegration = new apigateway.LambdaIntegration(props.productsAdminHandler)
+
+        // POST , PUT , DELETE
+        productsResource.addMethod("POST", productsAdminIntegration)
+
+        productsIdResource.addMethod("PUT", productsAdminIntegration)
+
+        productsIdResource.addMethod("DELETE", productsAdminIntegration)
+
+
     }
 }
